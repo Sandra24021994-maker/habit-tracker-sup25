@@ -85,8 +85,3 @@ if (isset($_POST['register'])) {
     header('Location: ../views/login.php');
     exit();
 }
-
-
-
-
-
