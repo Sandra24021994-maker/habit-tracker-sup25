@@ -8,7 +8,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 // Include database connection
-require_once '../config/db.php'; 
+require_once '../config/db.php';
 
 // Get PDO connection
 $db = new Database();
@@ -32,6 +32,20 @@ if ($edit_id) {
             break;
         }
     }
+}
+
+// Prepare flash messages for modal
+$flashMessage = '';
+$flashType = '';
+
+if (isset($_SESSION['flash_success'])) {
+    $flashMessage = $_SESSION['flash_success'];
+    $flashType = 'success';
+    unset($_SESSION['flash_success']);
+} elseif (isset($_SESSION['flash_error'])) {
+    $flashMessage = $_SESSION['flash_error'];
+    $flashType = 'error';
+    unset($_SESSION['flash_error']);
 }
 ?>
 
@@ -304,7 +318,51 @@ if ($edit_id) {
 
 </div>
 
+<!-- Flash Message Modal -->
+<div class="modal fade" id="flashMessageModal" tabindex="-1" aria-labelledby="flashMessageLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" id="flashMessageHeader">
+        <h5 class="modal-title" id="flashMessageLabel">Notification</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="flashMessageBody">
+        <!-- Message will be injected here -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const flashMessage = <?php echo json_encode($flashMessage); ?>;
+    const flashType = <?php echo json_encode($flashType); ?>;
+
+    if (flashMessage) {
+      const modalEl = document.getElementById('flashMessageModal');
+      const modalBody = document.getElementById('flashMessageBody');
+      const modalHeader = document.getElementById('flashMessageHeader');
+
+      modalBody.textContent = flashMessage;
+
+      if (flashType === 'success') {
+        modalHeader.classList.remove('bg-danger');
+        modalHeader.classList.add('bg-success', 'text-white');
+      } else if (flashType === 'error') {
+        modalHeader.classList.remove('bg-success');
+        modalHeader.classList.add('bg-danger', 'text-white');
+      }
+
+      const modal = new bootstrap.Modal(modalEl);
+      modal.show();
+    }
+  });
+</script>
 
 </body>
 </html>
