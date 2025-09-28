@@ -1,367 +1,332 @@
 <?php
 session_start();
-
-// Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
-    header('Location: login.php'); // Redirect if not logged in
+    header('Location: login.php');
     exit();
 }
 
-// Include database connection
 require_once '../config/db.php';
-
-// Get PDO connection
 $db = new Database();
 $pdo = $db->getConnection();
 
 $user_id = $_SESSION['user_id'];
 
-// Fetch existing activities for this user
+// Fetch all activities
 $stmt = $pdo->prepare("SELECT * FROM sk_activities WHERE user_id = :user_id ORDER BY created_at DESC");
 $stmt->execute(['user_id' => $user_id]);
 $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Check if edit mode for activity
 $edit_id = $_GET['edit_id'] ?? null;
 $activity_to_edit = null;
-
 if ($edit_id) {
-    foreach ($activities as $act) {
-        if ($act['id'] == $edit_id) {
-            $activity_to_edit = $act;
+    foreach ($activities as $a) {
+        if ($a['id'] == $edit_id) {
+            $activity_to_edit = $a;
             break;
         }
     }
-}
-
-// Prepare flash messages for modal
-$flashMessage = '';
-$flashType = '';
-
-if (isset($_SESSION['flash_success'])) {
-    $flashMessage = $_SESSION['flash_success'];
-    $flashType = 'success';
-    unset($_SESSION['flash_success']);
-} elseif (isset($_SESSION['flash_error'])) {
-    $flashMessage = $_SESSION['flash_error'];
-    $flashType = 'error';
-    unset($_SESSION['flash_error']);
 }
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <title>Dashboard - Hobilo</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <style>
-        body {
-            background: linear-gradient(135deg, #6a82fb, #fc5c7d);
-            min-height: 100vh;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 20px;
-        }
-
-        .dashboard-container {
-            background: white;
-            padding: 2.5rem 3rem;
-            border-radius: 12px;
-            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15);
-            max-width: 600px;
-            width: 100%;
-            margin: 80px auto 0;
-        }
-
-        h1 {
-            font-weight: 700;
-            color: #3366ff;
-            margin-bottom: 1rem;
-            user-select: none;
-            text-align: center;
-        }
-
-        header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 60px;
-            background: white;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 1.5rem;
-            z-index: 1000;
-        }
-
-        .header-title {
-            font-size: 24px;
-            font-weight: 700;
-            color: black;
-            user-select: none;
-        }
-
-        .dropdown-toggle {
-            border: none;
-            background: transparent;
-            font-size: 28px;
-            cursor: pointer;
-            color: #333;
-        }
-
-        .dropdown-menu {
-            right: 0;
-            left: auto;
-            min-width: 150px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-
-        .dropdown-menu a {
-            color: #333;
-            font-weight: 600;
-        }
-
-        .dropdown-menu a:hover {
-            background-color: #f1f1f1;
-            color: #3366ff;
-        }
-
-        /* Form styling */
-        form {
-            margin-top: 2rem;
-            margin-bottom: 2rem;
-        }
-
-        label {
-            font-weight: 600;
-        }
-
-        /* Activities table */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th, td {
-            padding: 8px 12px;
-            border-bottom: 1px solid #ddd;
-            text-align: left;
-        }
-
-        th {
-            background-color: #3366ff;
-            color: white;
-        }
-
-        /* Delete button */
-        .btn-delete {
-            color: white;
-            background-color: #ff4b5c;
-            border: none;
-            padding: 5px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-        }
-
-        .btn-delete:hover {
-            background-color: #d93648;
-        }
-        /* Edit button styling */
-        .btn-edit {
-            color: white;
-            background-color: #17a2b8;
-            border: none;
-            padding: 5px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            text-decoration: none;
-            display: inline-block;
-            margin-top: 5px;
-            font-size: 0.9rem;
-            text-align: center;
-        }
-        .btn-edit:hover {
-            background-color: #138496;
-            color: white;
-            text-decoration: none;
-        }
-    </style>
+<meta charset="UTF-8" />
+<title>Dashboard - Hobilo</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+<style>
+    body {
+        background: linear-gradient(135deg, #6a82fb, #fc5c7d);
+        min-height: 100vh;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        padding: 20px 0;
+    }
+    .container {
+        max-width: 900px;
+        margin: auto;
+        background: white;
+        padding: 30px 40px;
+        border-radius: 12px;
+        box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15);
+    }
+    h1, h2 {
+        color: #3366ff;
+        font-weight: 700;
+    }
+    label {
+        font-weight: 600;
+    }
+    .btn-primary {
+        background-color: #3366ff;
+        border: none;
+    }
+    .btn-primary:hover {
+        background-color: #274bdb;
+    }
+    .btn-delete {
+        background: #e74c3c;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 5px 10px;
+    }
+    .btn-delete:hover {
+        background: #c0392b;
+    }
+    .btn-edit {
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 5px 10px;
+        text-decoration: none;
+    }
+    .btn-edit:hover {
+        background: #2980b9;
+        color: white;
+        text-decoration: none;
+    }
+    .message {
+        padding: 10px;
+        margin-top: 15px;
+        border-radius: 6px;
+        display: none;
+        font-weight: 600;
+    }
+    .message.success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    .message.error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    table th, table td {
+        vertical-align: middle !important;
+    }
+</style>
 </head>
 <body>
 
-<header>
-    <div class="header-title" aria-label="Dashboard title">Dashboard</div>
-
-    <div class="dropdown">
-        <button class="dropdown-toggle" type="button" id="menuToggle" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Open menu">
-            &#9776;
-        </button>
-        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="menuToggle">
+<nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm mb-4" style="border-radius: 12px; max-width: 900px; margin: 0 auto 30px auto; padding: 0 20px;">
+  <div class="container-fluid p-0">
+    <a class="navbar-brand fw-bold" href="#">HOBILO</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" 
+      aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+  
+    <div class="collapse navbar-collapse justify-content-end" id="navbarSupportedContent">
+      <ul class="navbar-nav mb-2 mb-lg-0">
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle fw-semibold" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <?php echo htmlspecialchars($_SESSION['username']); ?>
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
             <li><a class="dropdown-item" href="profile.php">Profile</a></li>
             <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href="../controllers/logout.php">Log Out</a></li>
-        </ul>
-    </div>
-</header>
-
-<div class="dashboard-container" role="main">
-
-    <h1>Welcome, <?php echo htmlspecialchars($_SESSION['username']); ?>!</h1>
-
-    <?php if ($activity_to_edit): ?>
-        <h2>Edit Activity</h2>
-        <form action="../controllers/ActivityController.php" method="post" novalidate>
-            <input type="hidden" name="activity_id" value="<?php echo $activity_to_edit['id']; ?>">
-            <div class="mb-3">
-                <label for="name">Activity Name</label>
-                <input type="text" class="form-control" id="name" name="name" required maxlength="100" 
-                       value="<?php echo htmlspecialchars($activity_to_edit['name']); ?>" />
-            </div>
-
-            <div class="mb-3">
-                <label for="description">Description</label>
-                <textarea class="form-control" id="description" name="description" rows="2" maxlength="255"><?php echo htmlspecialchars($activity_to_edit['description']); ?></textarea>
-            </div>
-
-            <div class="mb-3">
-                <label for="category">Category</label>
-                <input type="text" class="form-control" id="category" name="category" maxlength="50" 
-                       value="<?php echo htmlspecialchars($activity_to_edit['category']); ?>" />
-            </div>
-
-            <div class="mb-3">
-                <label for="frequency">Frequency</label>
-                <select class="form-select" id="frequency" name="frequency" required>
-                    <option value="">Select frequency</option>
-                    <option value="Daily" <?php if ($activity_to_edit['frequency'] == 'Daily') echo 'selected'; ?>>Daily</option>
-                    <option value="Weekly" <?php if ($activity_to_edit['frequency'] == 'Weekly') echo 'selected'; ?>>Weekly</option>
-                    <option value="Monthly" <?php if ($activity_to_edit['frequency'] == 'Monthly') echo 'selected'; ?>>Monthly</option>
-                </select>
-            </div>
-
-            <button type="submit" name="update_activity" class="btn btn-warning w-100">Update Activity</button>
-            <a href="dashboard.php" class="btn btn-secondary w-100 mt-2">Cancel</a>
-        </form>
-    <?php else: ?>
-        <h2>Add Activity</h2>
-        <form action="../controllers/ActivityController.php" method="post" novalidate>
-            <div class="mb-3">
-                <label for="name">Activity Name</label>
-                <input type="text" class="form-control" id="name" name="name" required maxlength="100" />
-            </div>
-
-            <div class="mb-3">
-                <label for="description">Description</label>
-                <textarea class="form-control" id="description" name="description" rows="2" maxlength="255"></textarea>
-            </div>
-
-            <div class="mb-3">
-                <label for="category">Category</label>
-                <input type="text" class="form-control" id="category" name="category" maxlength="50" />
-            </div>
-
-            <div class="mb-3">
-                <label for="frequency">Frequency</label>
-                <select class="form-select" id="frequency" name="frequency" required>
-                    <option value="">Select frequency</option>
-                    <option value="Daily">Daily</option>
-                    <option value="Weekly">Weekly</option>
-                    <option value="Monthly">Monthly</option>
-                </select>
-            </div>
-
-            <button type="submit" name="add_activity" class="btn btn-primary w-100">Add Activity</button>
-        </form>
-    <?php endif; ?>
-
-    <h2>Your Activities</h2>
-
-    <?php if (count($activities) > 0): ?>
-        <table>
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Description</th>
-                    <th>Category</th>
-                    <th>Frequency</th>
-                    <th>Created At</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach($activities as $activity): ?>
-                    <tr>
-                        <td><?php echo htmlspecialchars($activity['name']); ?></td>
-                        <td><?php echo htmlspecialchars($activity['description']); ?></td>
-                        <td><?php echo htmlspecialchars($activity['category']); ?></td>
-                        <td><?php echo htmlspecialchars($activity['frequency']); ?></td>
-                        <td><?php echo date('Y-m-d', strtotime($activity['created_at'])); ?></td>
-                        <td>
-                            <form action="../controllers/ActivityController.php" method="post" onsubmit="return confirm('Are you sure you want to delete this activity?');" style="display:inline-block;">
-                                <input type="hidden" name="delete_activity_id" value="<?php echo $activity['id']; ?>" />
-                                <button type="submit" name="delete_activity" class="btn-delete">Delete</button>
-                            </form>
-                            <a href="dashboard.php?edit_id=<?php echo $activity['id']; ?>" class="btn-edit">Edit</a>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    <?php else: ?>
-        <p>No activities added yet. Start by adding one above!</p>
-    <?php endif; ?>
-
-</div>
-
-<!-- Flash Message Modal -->
-<div class="modal fade" id="flashMessageModal" tabindex="-1" aria-labelledby="flashMessageLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header" id="flashMessageHeader">
-        <h5 class="modal-title" id="flashMessageLabel">Notification</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body" id="flashMessageBody">
-        <!-- Message will be injected here -->
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">OK</button>
-      </div>
+            <li><a class="dropdown-item" href="../controllers/UserController.php?logout=1">Logout</a></li>
+          </ul>
+        </li>
+      </ul>
     </div>
   </div>
+</nav>
+
+<div class="container">
+  <h1>Welcome, <?php echo htmlspecialchars($_SESSION['username']); ?>!</h1>
+
+  <div id="message" class="message"></div>
+
+  <?php if ($activity_to_edit): ?>
+  <h2>Edit Activity</h2>
+  <form id="activityForm" class="mb-4">
+    <input type="hidden" name="id" value="<?php echo $activity_to_edit['id']; ?>" />
+    <div class="mb-3">
+      <label>Activity Name</label>
+      <input type="text" name="name" required maxlength="100" class="form-control" value="<?php echo htmlspecialchars($activity_to_edit['name']); ?>" />
+    </div>
+    <div class="mb-3">
+      <label>Description</label>
+      <textarea name="description" maxlength="255" class="form-control"><?php echo htmlspecialchars($activity_to_edit['description']); ?></textarea>
+    </div>
+    <div class="mb-3">
+      <label>Category</label>
+      <input type="text" name="category" maxlength="50" class="form-control" value="<?php echo htmlspecialchars($activity_to_edit['category']); ?>" />
+    </div>
+    <div class="mb-3">
+      <label>Frequency</label>
+      <select name="frequency" required class="form-select">
+        <option value="">Select frequency</option>
+        <option value="Daily" <?php if($activity_to_edit['frequency']=='Daily') echo 'selected'; ?>>Daily</option>
+        <option value="Weekly" <?php if($activity_to_edit['frequency']=='Weekly') echo 'selected'; ?>>Weekly</option>
+        <option value="Monthly" <?php if($activity_to_edit['frequency']=='Monthly') echo 'selected'; ?>>Monthly</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary me-2">Update Activity</button>
+    <button type="button" id="cancelEdit" class="btn btn-secondary">Cancel</button>
+  </form>
+  <?php else: ?>
+  <h2>Add Activity</h2>
+  <form id="activityForm" class="mb-4">
+    <div class="mb-3">
+      <label>Activity Name</label>
+      <input type="text" name="name" required maxlength="100" class="form-control" />
+    </div>
+    <div class="mb-3">
+      <label>Description</label>
+      <textarea name="description" maxlength="255" class="form-control"></textarea>
+    </div>
+    <div class="mb-3">
+      <label>Category</label>
+      <input type="text" name="category" maxlength="50" class="form-control" />
+    </div>
+    <div class="mb-3">
+      <label>Frequency</label>
+      <select name="frequency" required class="form-select">
+        <option value="">Select frequency</option>
+        <option value="Daily">Daily</option>
+        <option value="Weekly">Weekly</option>
+        <option value="Monthly">Monthly</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Add Activity</button>
+  </form>
+  <?php endif; ?>
+
+  <h2>Your Activities</h2>
+  <table id="activitiesTable" class="table table-striped table-bordered align-middle">
+    <thead>
+      <tr>
+        <th>Name</th><th>Description</th><th>Category</th><th>Frequency</th><th>Created At</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php foreach($activities as $a): ?>
+      <tr data-id="<?php echo $a['id']; ?>">
+        <td><?php echo htmlspecialchars($a['name']); ?></td>
+        <td><?php echo htmlspecialchars($a['description']); ?></td>
+        <td><?php echo htmlspecialchars($a['category']); ?></td>
+        <td><?php echo htmlspecialchars($a['frequency']); ?></td>
+        <td><?php echo date('Y-m-d', strtotime($a['created_at'])); ?></td>
+        <td>
+          <button class="btn-delete btn btn-sm me-2">Delete</button>
+          <a href="dashboard.php?edit_id=<?php echo $a['id']; ?>" class="btn-edit btn btn-sm">Edit</a>
+        </td>
+      </tr>
+      <?php endforeach; ?>
+    </tbody>
+  </table>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
 
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const flashMessage = <?php echo json_encode($flashMessage); ?>;
-    const flashType = <?php echo json_encode($flashType); ?>;
+const form = document.getElementById('activityForm');
+const messageDiv = document.getElementById('message');
+const cancelEditBtn = document.getElementById('cancelEdit');
+const activitiesTable = document.getElementById('activitiesTable').querySelector('tbody');
 
-    if (flashMessage) {
-      const modalEl = document.getElementById('flashMessageModal');
-      const modalBody = document.getElementById('flashMessageBody');
-      const modalHeader = document.getElementById('flashMessageHeader');
+function showMessage(msg, type = 'success'){
+  messageDiv.textContent = msg;
+  messageDiv.className = 'message ' + type;
+  messageDiv.style.display = 'block';
+  setTimeout(() => { messageDiv.style.display = 'none'; }, 4000);
+}
 
-      modalBody.textContent = flashMessage;
+if(form){
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
 
-      if (flashType === 'success') {
-        modalHeader.classList.remove('bg-danger');
-        modalHeader.classList.add('bg-success', 'text-white');
-      } else if (flashType === 'error') {
-        modalHeader.classList.remove('bg-success');
-        modalHeader.classList.add('bg-danger', 'text-white');
-      }
+    const formData = new FormData(form);
+    let postData = new URLSearchParams();
 
-      const modal = new bootstrap.Modal(modalEl);
-      modal.show();
+    if(formData.get('id')){
+      postData.append('update_activity', '1');
+      postData.append('activity_id', formData.get('id'));
+    } else {
+      postData.append('add_activity', '1');
     }
+
+    postData.append('name', formData.get('name'));
+    postData.append('description', formData.get('description'));
+    postData.append('category', formData.get('category'));
+    postData.append('frequency', formData.get('frequency'));
+
+    fetch('../controllers/ActivityController.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: postData.toString()
+    })
+    .then(res => res.json())
+    .then(data => {
+      if(data.success){
+        showMessage(data.message);
+
+        if(formData.get('id')){
+          setTimeout(() => window.location.href = 'dashboard.php', 1000);
+        } else {
+          const a = data.activity;
+          const tr = document.createElement('tr');
+          tr.setAttribute('data-id', a.id);
+          tr.innerHTML = `
+            <td>${a.name}</td>
+            <td>${a.description}</td>
+            <td>${a.category}</td>
+            <td>${a.frequency}</td>
+            <td>${a.created_at}</td>
+            <td>
+              <button class="btn-delete btn btn-sm me-2">Delete</button>
+              <a href="dashboard.php?edit_id=${a.id}" class="btn-edit btn btn-sm">Edit</a>
+            </td>
+          `;
+          activitiesTable.prepend(tr);
+          form.reset();
+        }
+      } else {
+        showMessage(data.message || 'Operation failed', 'error');
+      }
+    })
+    .catch(() => showMessage('Network error', 'error'));
   });
+}
+
+if(cancelEditBtn){
+  cancelEditBtn.addEventListener('click', () => {
+    window.location.href = 'dashboard.php';
+  });
+}
+
+activitiesTable.addEventListener('click', e => {
+  if(e.target.classList.contains('btn-delete')){
+    const row = e.target.closest('tr');
+    const id = row.getAttribute('data-id');
+    if(confirm('Are you sure you want to delete this activity?')){
+      const postData = new URLSearchParams();
+      postData.append('delete_activity', '1');
+      postData.append('delete_activity_id', id);
+
+      fetch('../controllers/ActivityController.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: postData.toString()
+      })
+      .then(res => res.json())
+      .then(data => {
+        if(data.success){
+          showMessage(data.message);
+          row.remove();
+        } else {
+          showMessage(data.message || 'Failed to delete', 'error');
+        }
+      })
+      .catch(() => showMessage('Network error', 'error'));
+    }
+  }
+});
 </script>
 
 </body>

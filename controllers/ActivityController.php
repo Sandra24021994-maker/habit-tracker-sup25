@@ -1,8 +1,10 @@
 <?php
 session_start();
 
+header('Content-Type: application/json'); // All responses are JSON
+
 if (!isset($_SESSION['user_id'])) {
-    header('Location: ../views/login.php');
+    echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit();
 }
 
@@ -13,6 +15,13 @@ $pdo = $db->getConnection();
 
 $user_id = $_SESSION['user_id'];
 
+// Helper function to send JSON response and stop script
+function respond($success, $message, $extra = []) {
+    echo json_encode(array_merge(['success' => $success, 'message' => $message], $extra));
+    exit();
+}
+
+// Add activity
 if (isset($_POST['add_activity'])) {
     $name = trim($_POST['name'] ?? '');
     $description = trim($_POST['description'] ?? '');
@@ -22,29 +31,37 @@ if (isset($_POST['add_activity'])) {
     if ($name && $frequency) {
         $stmt = $pdo->prepare("INSERT INTO sk_activities (user_id, name, description, category, frequency, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
         if ($stmt->execute([$user_id, $name, $description, $category, $frequency])) {
-            $_SESSION['flash_success'] = "Activity added successfully.";
+            $id = $pdo->lastInsertId();
+            respond(true, 'Activity added successfully.', [
+                'activity' => [
+                    'id' => $id,
+                    'name' => $name,
+                    'description' => $description,
+                    'category' => $category,
+                    'frequency' => $frequency,
+                    'created_at' => date('Y-m-d')
+                ]
+            ]);
         } else {
-            $_SESSION['flash_error'] = "Failed to add activity.";
+            respond(false, 'Failed to add activity.');
         }
     } else {
-        $_SESSION['flash_error'] = "Name and frequency are required.";
+        respond(false, 'Name and frequency are required.');
     }
-    header('Location: ../views/dashboard.php');
-    exit();
 }
 
+// Delete activity
 if (isset($_POST['delete_activity']) && isset($_POST['delete_activity_id'])) {
     $activity_id = intval($_POST['delete_activity_id']);
     $stmt = $pdo->prepare("DELETE FROM sk_activities WHERE id = ? AND user_id = ?");
     if ($stmt->execute([$activity_id, $user_id]) && $stmt->rowCount() > 0) {
-        $_SESSION['flash_success'] = "Activity deleted successfully.";
+        respond(true, 'Activity deleted successfully.');
     } else {
-        $_SESSION['flash_error'] = "Failed to delete activity or activity not found.";
+        respond(false, 'Failed to delete activity or activity not found.');
     }
-    header('Location: ../views/dashboard.php');
-    exit();
 }
 
+// Update activity
 if (isset($_POST['update_activity']) && isset($_POST['activity_id'])) {
     $activity_id = intval($_POST['activity_id']);
     $name = trim($_POST['name'] ?? '');
@@ -55,16 +72,14 @@ if (isset($_POST['update_activity']) && isset($_POST['activity_id'])) {
     if ($name && $frequency) {
         $stmt = $pdo->prepare("UPDATE sk_activities SET name = ?, description = ?, category = ?, frequency = ? WHERE id = ? AND user_id = ?");
         if ($stmt->execute([$name, $description, $category, $frequency, $activity_id, $user_id]) && $stmt->rowCount() > 0) {
-            $_SESSION['flash_success'] = "Activity updated successfully.";
+            respond(true, 'Activity updated successfully.');
         } else {
-            $_SESSION['flash_error'] = "Failed to update activity or no changes made.";
+            respond(false, 'Failed to update activity or no changes made.');
         }
     } else {
-        $_SESSION['flash_error'] = "Name and frequency are required for update.";
+        respond(false, 'Name and frequency are required for update.');
     }
-    header('Location: ../views/dashboard.php');
-    exit();
 }
 
-header('Location: ../views/dashboard.php');
-exit();
+// If none of the above conditions are met
+respond(false, 'Invalid request.');
