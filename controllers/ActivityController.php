@@ -35,6 +35,20 @@ if (isset($_POST['delete_activity']) && isset($_POST['delete_activity_id'])) {
     exit();
 }
 
+if (isset($_POST['update_activity']) && isset($_POST['activity_id'])) {
+    $activity_id = intval($_POST['activity_id']);
+    $name = trim($_POST['name'] ?? '');
+    $description = trim($_POST['description'] ?? '');
+    $category = trim($_POST['category'] ?? '');
+    $frequency = trim($_POST['frequency'] ?? '');
+
+    if ($name && $frequency) {
+        $stmt = $pdo->prepare("UPDATE sk_activities SET name = ?, description = ?, category = ?, frequency = ? WHERE id = ? AND user_id = ?");
+        $stmt->execute([$name, $description, $category, $frequency, $activity_id, $user_id]);
+    }
+    header('Location: ../views/dashboard.php');
+    exit();
+}
+
 header('Location: ../views/dashboard.php');
 exit();
-

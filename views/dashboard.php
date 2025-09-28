@@ -20,6 +20,19 @@ $user_id = $_SESSION['user_id'];
 $stmt = $pdo->prepare("SELECT * FROM sk_activities WHERE user_id = :user_id ORDER BY created_at DESC");
 $stmt->execute(['user_id' => $user_id]);
 $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Check if edit mode for activity
+$edit_id = $_GET['edit_id'] ?? null;
+$activity_to_edit = null;
+
+if ($edit_id) {
+    foreach ($activities as $act) {
+        if ($act['id'] == $edit_id) {
+            $activity_to_edit = $act;
+            break;
+        }
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -143,7 +156,26 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .btn-delete:hover {
             background-color: #d93648;
         }
-
+        /* Edit button styling */
+        .btn-edit {
+            color: white;
+            background-color: #17a2b8;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 5px;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        .btn-edit:hover {
+            background-color: #138496;
+            color: white;
+            text-decoration: none;
+        }
     </style>
 </head>
 <body>
@@ -167,37 +199,72 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <h1>Welcome, <?php echo htmlspecialchars($_SESSION['username']); ?>!</h1>
 
-    <!-- Add Activity Form -->
-    <form action="../controllers/ActivityController.php" method="post" novalidate>
-        <div class="mb-3">
-            <label for="name">Activity Name</label>
-            <input type="text" class="form-control" id="name" name="name" required maxlength="100" />
-        </div>
+    <?php if ($activity_to_edit): ?>
+        <h2>Edit Activity</h2>
+        <form action="../controllers/ActivityController.php" method="post" novalidate>
+            <input type="hidden" name="activity_id" value="<?php echo $activity_to_edit['id']; ?>">
+            <div class="mb-3">
+                <label for="name">Activity Name</label>
+                <input type="text" class="form-control" id="name" name="name" required maxlength="100" 
+                       value="<?php echo htmlspecialchars($activity_to_edit['name']); ?>" />
+            </div>
 
-        <div class="mb-3">
-            <label for="description">Description</label>
-            <textarea class="form-control" id="description" name="description" rows="2" maxlength="255"></textarea>
-        </div>
+            <div class="mb-3">
+                <label for="description">Description</label>
+                <textarea class="form-control" id="description" name="description" rows="2" maxlength="255"><?php echo htmlspecialchars($activity_to_edit['description']); ?></textarea>
+            </div>
 
-        <div class="mb-3">
-            <label for="category">Category</label>
-            <input type="text" class="form-control" id="category" name="category" maxlength="50" />
-        </div>
+            <div class="mb-3">
+                <label for="category">Category</label>
+                <input type="text" class="form-control" id="category" name="category" maxlength="50" 
+                       value="<?php echo htmlspecialchars($activity_to_edit['category']); ?>" />
+            </div>
 
-        <div class="mb-3">
-            <label for="frequency">Frequency</label>
-            <select class="form-select" id="frequency" name="frequency" required>
-                <option value="">Select frequency</option>
-                <option value="Daily">Daily</option>
-                <option value="Weekly">Weekly</option>
-                <option value="Monthly">Monthly</option>
-            </select>
-        </div>
+            <div class="mb-3">
+                <label for="frequency">Frequency</label>
+                <select class="form-select" id="frequency" name="frequency" required>
+                    <option value="">Select frequency</option>
+                    <option value="Daily" <?php if ($activity_to_edit['frequency'] == 'Daily') echo 'selected'; ?>>Daily</option>
+                    <option value="Weekly" <?php if ($activity_to_edit['frequency'] == 'Weekly') echo 'selected'; ?>>Weekly</option>
+                    <option value="Monthly" <?php if ($activity_to_edit['frequency'] == 'Monthly') echo 'selected'; ?>>Monthly</option>
+                </select>
+            </div>
 
-        <button type="submit" name="add_activity" class="btn btn-primary w-100">Add Activity</button>
-    </form>
+            <button type="submit" name="update_activity" class="btn btn-warning w-100">Update Activity</button>
+            <a href="dashboard.php" class="btn btn-secondary w-100 mt-2">Cancel</a>
+        </form>
+    <?php else: ?>
+        <h2>Add Activity</h2>
+        <form action="../controllers/ActivityController.php" method="post" novalidate>
+            <div class="mb-3">
+                <label for="name">Activity Name</label>
+                <input type="text" class="form-control" id="name" name="name" required maxlength="100" />
+            </div>
 
-    <!-- Activities List -->
+            <div class="mb-3">
+                <label for="description">Description</label>
+                <textarea class="form-control" id="description" name="description" rows="2" maxlength="255"></textarea>
+            </div>
+
+            <div class="mb-3">
+                <label for="category">Category</label>
+                <input type="text" class="form-control" id="category" name="category" maxlength="50" />
+            </div>
+
+            <div class="mb-3">
+                <label for="frequency">Frequency</label>
+                <select class="form-select" id="frequency" name="frequency" required>
+                    <option value="">Select frequency</option>
+                    <option value="Daily">Daily</option>
+                    <option value="Weekly">Weekly</option>
+                    <option value="Monthly">Monthly</option>
+                </select>
+            </div>
+
+            <button type="submit" name="add_activity" class="btn btn-primary w-100">Add Activity</button>
+        </form>
+    <?php endif; ?>
+
     <h2>Your Activities</h2>
 
     <?php if (count($activities) > 0): ?>
@@ -221,10 +288,11 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <td><?php echo htmlspecialchars($activity['frequency']); ?></td>
                         <td><?php echo date('Y-m-d', strtotime($activity['created_at'])); ?></td>
                         <td>
-                            <form action="../controllers/ActivityController.php" method="post" onsubmit="return confirm('Are you sure you want to delete this activity?');">
+                            <form action="../controllers/ActivityController.php" method="post" onsubmit="return confirm('Are you sure you want to delete this activity?');" style="display:inline-block;">
                                 <input type="hidden" name="delete_activity_id" value="<?php echo $activity['id']; ?>" />
                                 <button type="submit" name="delete_activity" class="btn-delete">Delete</button>
                             </form>
+                            <a href="dashboard.php?edit_id=<?php echo $activity['id']; ?>" class="btn-edit">Edit</a>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -240,16 +308,3 @@ $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
