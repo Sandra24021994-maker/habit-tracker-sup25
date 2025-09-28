@@ -77,14 +77,13 @@ session_start();
 
         <h2 class="mb-4">Login</h2>
 
-        <?php if (isset($_SESSION['message'])): ?>
-            <div class="alert alert-danger">
-                <?php 
-                    echo $_SESSION['message']; 
-                    unset($_SESSION['message']);
-                ?>
-            </div>
-        <?php endif; ?>
+        <?php
+        // Prikazivanje poruke samo ako korisnik NIJE logovan
+        if (isset($_SESSION['message']) && !isset($_SESSION['user_id'])) {
+            echo '<div class="alert alert-danger">' . $_SESSION['message'] . '</div>';
+            unset($_SESSION['message']);  // briši poruku odmah nakon prikaza
+        }
+        ?>
 
         <form action="../controllers/UserController.php" method="post">
             <div class="mb-3 text-start">
