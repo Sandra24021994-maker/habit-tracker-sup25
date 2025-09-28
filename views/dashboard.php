@@ -106,6 +106,21 @@ if ($edit_id) {
     table th, table td {
         vertical-align: middle !important;
     }
+    .memory-img-thumb {
+        max-width: 60px;
+        max-height: 40px;
+        cursor: pointer;
+        border-radius: 6px;
+        object-fit: cover;
+    }
+    /* Modal styles */
+    #imageModal .modal-dialog {
+        max-width: 600px;
+    }
+    #imageModal img {
+        width: 100%;
+        border-radius: 8px;
+    }
 </style>
 </head>
 <body>
@@ -140,9 +155,20 @@ if ($edit_id) {
 
   <div id="message" class="message"></div>
 
+  <?php
+  // Helper function for image preview in form
+  function memoryImagePreview($filename) {
+    if ($filename) {
+      $url = "../" . htmlspecialchars($filename);
+      return '<img src="' . $url . '" alt="Memory Image" style="max-width:120px; max-height:80px; border-radius:6px; margin-top:5px;" />';
+    }
+    return '';
+  }
+  ?>
+
   <?php if ($activity_to_edit): ?>
   <h2>Edit Activity</h2>
-  <form id="activityForm" class="mb-4">
+  <form id="activityForm" class="mb-4" enctype="multipart/form-data">
     <input type="hidden" name="id" value="<?php echo $activity_to_edit['id']; ?>" />
     <div class="mb-3">
       <label>Activity Name</label>
@@ -165,12 +191,17 @@ if ($edit_id) {
         <option value="Monthly" <?php if($activity_to_edit['frequency']=='Monthly') echo 'selected'; ?>>Monthly</option>
       </select>
     </div>
+    <div class="mb-3">
+      <label>Memory Image (optional)</label>
+      <input type="file" name="memory_image" accept="image/*" class="form-control" />
+      <?php echo memoryImagePreview($activity_to_edit['memory_image']); ?>
+    </div>
     <button type="submit" class="btn btn-primary me-2">Update Activity</button>
     <button type="button" id="cancelEdit" class="btn btn-secondary">Cancel</button>
   </form>
   <?php else: ?>
   <h2>Add Activity</h2>
-  <form id="activityForm" class="mb-4">
+  <form id="activityForm" class="mb-4" enctype="multipart/form-data">
     <div class="mb-3">
       <label>Activity Name</label>
       <input type="text" name="name" required maxlength="100" class="form-control" />
@@ -192,6 +223,10 @@ if ($edit_id) {
         <option value="Monthly">Monthly</option>
       </select>
     </div>
+    <div class="mb-3">
+      <label>Memory Image (optional)</label>
+      <input type="file" name="memory_image" accept="image/*" class="form-control" />
+    </div>
     <button type="submit" class="btn btn-primary">Add Activity</button>
   </form>
   <?php endif; ?>
@@ -200,7 +235,7 @@ if ($edit_id) {
   <table id="activitiesTable" class="table table-striped table-bordered align-middle">
     <thead>
       <tr>
-        <th>Name</th><th>Description</th><th>Category</th><th>Frequency</th><th>Created At</th><th>Actions</th>
+        <th>Name</th><th>Description</th><th>Category</th><th>Frequency</th><th>Created At</th><th>Memory Image</th><th>Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -212,6 +247,13 @@ if ($edit_id) {
         <td><?php echo htmlspecialchars($a['frequency']); ?></td>
         <td><?php echo date('Y-m-d', strtotime($a['created_at'])); ?></td>
         <td>
+          <?php if ($a['memory_image']): ?>
+            <img src="../<?php echo htmlspecialchars($a['memory_image']); ?>" alt="Memory Image" class="memory-img-thumb" />
+          <?php else: ?>
+            -
+          <?php endif; ?>
+        </td>
+        <td>
           <button class="btn-delete btn btn-sm me-2">Delete</button>
           <a href="dashboard.php?edit_id=<?php echo $a['id']; ?>" class="btn-edit btn btn-sm">Edit</a>
         </td>
@@ -219,6 +261,21 @@ if ($edit_id) {
       <?php endforeach; ?>
     </tbody>
   </table>
+</div>
+
+<!-- Modal for image preview -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content p-3">
+      <div class="modal-header">
+        <h5 class="modal-title" id="imageModalLabel">Memory Image</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img src="" alt="Memory Image" id="modalImage" />
+      </div>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
@@ -241,34 +298,33 @@ if(form){
   form.addEventListener('submit', function(e){
     e.preventDefault();
 
+    // Using FormData to send text fields + file
     const formData = new FormData(form);
-    let postData = new URLSearchParams();
 
     if(formData.get('id')){
-      postData.append('update_activity', '1');
-      postData.append('activity_id', formData.get('id'));
+      formData.append('update_activity', '1');
+      formData.append('activity_id', formData.get('id'));
     } else {
-      postData.append('add_activity', '1');
+      formData.append('add_activity', '1');
     }
 
-    postData.append('name', formData.get('name'));
-    postData.append('description', formData.get('description'));
-    postData.append('category', formData.get('category'));
-    postData.append('frequency', formData.get('frequency'));
+    // Remove id because we already appended activity_id for update
+    formData.delete('id');
 
     fetch('../controllers/ActivityController.php', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: postData.toString()
+      body: formData
     })
     .then(res => res.json())
     .then(data => {
       if(data.success){
         showMessage(data.message);
 
-        if(formData.get('id')){
+        if(formData.get('activity_id')){
+          // On update, reload page after short delay
           setTimeout(() => window.location.href = 'dashboard.php', 1000);
         } else {
+          // On add, update table with new activity
           const a = data.activity;
           const tr = document.createElement('tr');
           tr.setAttribute('data-id', a.id);
@@ -278,6 +334,7 @@ if(form){
             <td>${a.category}</td>
             <td>${a.frequency}</td>
             <td>${a.created_at}</td>
+            <td>${a.memory_image ? `<img src="../${a.memory_image}" alt="Memory Image" class="memory-img-thumb" />` : '-'}</td>
             <td>
               <button class="btn-delete btn btn-sm me-2">Delete</button>
               <a href="dashboard.php?edit_id=${a.id}" class="btn-edit btn btn-sm">Edit</a>
@@ -300,6 +357,7 @@ if(cancelEditBtn){
   });
 }
 
+// Delete button handler
 activitiesTable.addEventListener('click', e => {
   if(e.target.classList.contains('btn-delete')){
     const row = e.target.closest('tr');
@@ -325,6 +383,17 @@ activitiesTable.addEventListener('click', e => {
       })
       .catch(() => showMessage('Network error', 'error'));
     }
+  }
+});
+
+// Image thumbnail click to show modal
+document.querySelector('#activitiesTable tbody').addEventListener('click', e => {
+  if(e.target.classList.contains('memory-img-thumb')){
+    const src = e.target.getAttribute('src');
+    const modalImage = document.getElementById('modalImage');
+    modalImage.src = src;
+    const imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
+    imageModal.show();
   }
 });
 </script>
